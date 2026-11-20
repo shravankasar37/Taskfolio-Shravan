@@ -43,14 +43,20 @@
   <h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
   @if (!loaded && !busy) { <button (click)="reload()">Retry loading dashboard</button> }
   @if (loaded) {
+    @if (!tasksUnavailable) {
     <dl class="stats" aria-label="Task statistics">
       <div><dt>Total tasks</dt><dd>{{tasks.length}}</dd></div>
       <div><dt>Pending</dt><dd>{{tasks.length - completed}}</dd></div>
       <div><dt>Completed</dt><dd>{{completed}}</dd></div>
     </dl>
+    }
     <div class="workspace" [class.admin]="admin">
     @if (admin) {
       <section><h2>Registered users</h2>
+      @if (usersUnavailable) {
+        <p role="alert">The user list could not be loaded.</p>
+        <button [disabled]="busy" (click)="reload()">Retry loading users</button>
+      } @else {
       @for (u of users; track u.id) {
         <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}</p></div>
                 <div class="actions"><span class="account-status" [class.active]="u.is_active">{{u.is_active === true ? 'Active' : u.is_active === false ? 'Inactive' : 'Status unavailable'}}</span>
@@ -59,19 +65,24 @@
           <button [disabled]="busy" (click)="changeAccess(u)">{{u.is_active ? 'Deactivate' : 'Activate'}}</button>
         }</div></article>
       } @empty { <p>No registered users.</p> }
+      }
       </section>
     } @else {
       <section class="editor"><h2>{{editing === undefined ? 'Add task' : 'Edit task'}}</h2>
       <form #taskForm="ngForm" (ngSubmit)="save()">
-        <label>Title<input #titleInput required maxlength="200" name="title" [(ngModel)]="draft.title"></label>
-        <label>Description<textarea name="description" [(ngModel)]="draft.description"></textarea></label>
-        <div class="row"><label>Priority<select name="priority" [(ngModel)]="draft.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
-        <label>Due date<input type="date" name="date" [(ngModel)]="draft.due_date"></label></div>
+        <label>Title<input #titleInput required maxlength="200" [disabled]="busy" name="title" [(ngModel)]="draft.title"></label>
+        <label>Description<textarea [disabled]="busy" name="description" [(ngModel)]="draft.description"></textarea></label>
+        <div class="row"><label>Priority<select [disabled]="busy" name="priority" [(ngModel)]="draft.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+        <label>Due date<input type="date" [disabled]="busy" name="date" [(ngModel)]="draft.due_date"></label></div>
         <div class="actions"><button class="primary" [disabled]="busy || taskForm.invalid || !draft.title.trim()">{{editing === undefined ? 'Add task' : 'Save changes'}}</button>
         @if (editing !== undefined) { <button type="button" [disabled]="busy" (click)="resetForm()">Cancel</button> }</div>
       </form></section>
     }
     <section class="task-list"><h2>{{admin ? 'All tasks' : 'Task list'}}</h2>
+    @if (tasksUnavailable) {
+      <p role="alert">Tasks and statistics could not be loaded.</p>
+      <button [disabled]="busy" (click)="reload()">Retry loading tasks</button>
+    } @else {
     <div class="filters" role="group" aria-label="Task status">
       @for (status of ['all', 'pending', 'completed']; track status) {
         <button type="button" [attr.aria-pressed]="filter === status" (click)="filter = status">{{status}}</button>
@@ -79,7 +90,7 @@
     </div>
     <div class="row">
       <label>Search by title<input type="search" [(ngModel)]="query"></label>
-      @if (admin) {
+      @if (admin && !usersUnavailable) {
         <label>Task owner<select name="owner" [(ngModel)]="ownerId">
           <option [ngValue]="null">All owners</option>
           @for (owner of users; track owner.id) {
@@ -114,6 +125,7 @@
           <p>{{admin ? 'No tasks have been added yet.' : 'Add your first task to see it here.'}}</p>
         }
       </div>
+    }
     }
     </section></div>
   }

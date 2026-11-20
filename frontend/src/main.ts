@@ -18,6 +18,7 @@ class App {
   register = false;
   email = ''; password = ''; name = '';
   busy = false; notice = ''; error = ''; loaded = false;
+  tasksUnavailable = false; usersUnavailable = false;
   tasks: Task[] = []; users: User[] = [];
   filter = 'all'; query = '';
   ownerId: number | null = null;
@@ -52,7 +53,26 @@ class App {
   }
   async refresh() {
     this.loaded = false;
-    const [tasks, users] = await Promise.all([this.api.tasks(this.admin), this.admin ? this.api.users() : []]);
+    this.tasksUnavailable = false;
+    this.usersUnavailable = false;
+    if (!this.admin) {
+      this.tasks = await this.api.myTasks();
+      this.loaded = true;
+      return;
+    }
+    const [tasks, users] = await Promise.allSettled([this.api.allTasks(), this.api.users()]);
+    for (const result of [tasks, users]) {
+      if (result.status === 'rejected' && result.reason instanceof HttpErrorResponse && result.reason.status === 401) {
+        throw result.reason;
+      }
+    }
+    this.tasksUnavailable = tasks.status === 'rejected';
+    this.usersUnavailable = users.status === 'rejected';
+    this.tasks = tasks.status === 'fulfilled' ? tasks.value : [];
+    this.setUsers(users.status === 'fulfilled' ? users.value : []);
+    this.loaded = true;
+  }
+  private setUsers(users: User[]) {
     const nameCounts = new Map<string, number>();
     const nameKey = (u: User) => u.name.trim().toLowerCase();
     for (const user of users) {
@@ -63,7 +83,7 @@ class App {
       user.id, nameCounts.get(nameKey(user)) === 1 ? user.name : user.name + ' (' + user.email + ')'
     ]));
     if (this.ownerId !== null && !this.ownerLabels.has(this.ownerId)) this.ownerId = null;
-    this.tasks = tasks; this.users = users; this.loaded = true;
+    this.users = users;
   }
   signIn() {
     return this.run(async () => {

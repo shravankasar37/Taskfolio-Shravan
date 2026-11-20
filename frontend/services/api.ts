@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
-export interface User { id: number; name: string; email: string; role: 'user' | 'admin'; is_active: boolean }
+interface SessionUser { id: number; name: string; email: string; role: 'user' | 'admin' }
+export interface User extends SessionUser { is_active: boolean }
 export interface Draft {
   title: string;
   description: string;
@@ -11,13 +12,13 @@ export interface Draft {
   due_date: string | null;
 }
 export interface Task extends Draft { id: number; user_id: number }
-interface Session { token: string; user: User }
+interface Session { token: string; user: SessionUser }
 const sessionKey = 'grp10.todo.session';
 
 function validSession(value: Session | null): value is Session {
   return typeof value?.token === 'string' && value.token.length > 0
     && Number.isInteger(value.user?.id) && typeof value.user.name === 'string'
-    && ['user', 'admin'].includes(value.user.role);
+    && typeof value.user.email === 'string' && ['user', 'admin'].includes(value.user.role);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -49,8 +50,8 @@ export class Api {
     if (!validSession(result)) {
       throw new Error('The login response is missing a token or a recognised role.');
     }
-    const {id, name, role, is_active} = result.user;
-    this.session = {token: result.token, user: {id, name, email: result.user.email, role, is_active}};
+    const {id, name, role} = result.user;
+    this.session = {token: result.token, user: {id, name, email: result.user.email, role}};
     try { sessionStorage.setItem(sessionKey, JSON.stringify(this.session)); }
     catch { /* The current page still works when storage is unavailable. */ }
   }
@@ -61,7 +62,8 @@ export class Api {
     }));
   }
 
-  tasks(admin = false) { return this.request<Task[]>('GET', admin ? '/admin/tasks' : '/tasks'); }
+  myTasks() { return this.request<Task[]>('GET', '/tasks'); }
+  allTasks() { return this.request<Task[]>('GET', '/admin/tasks'); }
   users() { return this.request<User[]>('GET', '/admin/users'); }
   saveTask(draft: Draft, id?: number) {
     return id === undefined ? this.request('POST', '/tasks', draft)

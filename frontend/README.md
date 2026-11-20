@@ -15,3 +15,8 @@ The following contract is provisional. Confirm paths and payloads before integra
 - GET /api/admin/tasks and /api/admin/users return arrays. Admin statistics use the full unpaginated task array.
 - PATCH /api/admin/users/:id accepts {name} or {is_active}. User records in the admin list include is_active. The admin dashboard supports renaming, activating and deactivating accounts. Fastify must enforce access changes and prevent self-deactivation.
 - See services/api.ts for field types. Fastify must check identity, ownership and admin permissions on protected endpoints.
+
+### Task writes to confirm before integration
+
+- Concurrent edits: the client currently uses PUT for task edits and completion. Please confirm support for PATCH with changed fields only (including a status-only update) and a task version or ETag for detecting conflicting edits. A stale write should return a conflict and preserve the newer data.
+- Creation retries: please confirm an Idempotency-Key header for POST /api/tasks. The client should reuse the key when retrying the same submission after a lost response. The server must atomically deduplicate by signed-in user and key and return the original result. Until both sides implement this, a retry can create a second task.
