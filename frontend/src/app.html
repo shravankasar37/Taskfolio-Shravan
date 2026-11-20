@@ -1,0 +1,121 @@
+@if (api.session) {
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">
+      <span class="notebook-mark" aria-hidden="true">✓</span>
+      <strong>To-do</strong>
+    </div>
+    <div class="account">
+
+        <span class="account-name">{{api.session.user.name}}</span>
+        <button [disabled]="busy" (click)="logout()">Sign out</button>
+
+    </div>
+  </div>
+</header>
+}
+<main [class.entry]="!api.session">
+@if (error) { <p role="alert">{{error}}</p> }
+@if (notice || busy) { <p role="status">{{busy ? 'Please wait…' : notice}}</p> }
+@if (!api.session) {
+  <section class="auth">
+    <div class="cover">
+      <strong class="cover-title">To-do</strong>
+      <div class="sheet" aria-hidden="true">
+        <i class="binding"></i>
+        <strong class="sheet-title">Today's list</strong>
+        <ul class="paper-list">
+          <li class="checked">Review yesterday’s notes</li>
+          <li>Sketch the dashboard</li>
+          <li>Plan tomorrow’s tasks</li>
+        </ul>
+      </div>
+    </div>
+    <div class="auth-body"><h1>{{register ? 'Create an account' : 'Sign in'}}</h1>
+  <p class="intro">{{register ? 'Create your login to start adding tasks.' : 'Sign in to your task dashboard.'}}</p><form #auth="ngForm" (ngSubmit)="signIn()">
+    @if (register) { <label>Name<input required maxlength="100" name="name" autocomplete="name" [(ngModel)]="name"></label> }
+    <label>Email<input required maxlength="255" email type="email" autocomplete="email" name="email" [(ngModel)]="email"></label>
+    <label>Password<input required type="password" [attr.autocomplete]="register ? 'new-password' : 'current-password'" name="password" [(ngModel)]="password"></label>
+    <button class="primary" [disabled]="busy || auth.invalid || (register && !name.trim())">{{register ? 'Register' : 'Sign in'}}</button>
+  </form>
+  <button class="text-button" [disabled]="busy" (click)="register = !register; password = ''; error = ''; notice = ''">{{register ? 'Back to sign in' : 'Create an account'}}</button></div></section>
+} @else {
+  <h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
+  @if (!loaded && !busy) { <button (click)="reload()">Retry loading dashboard</button> }
+  @if (loaded) {
+    <dl class="stats" aria-label="Task statistics">
+      <div><dt>Total tasks</dt><dd>{{tasks.length}}</dd></div>
+      <div><dt>Pending</dt><dd>{{tasks.length - completed}}</dd></div>
+      <div><dt>Completed</dt><dd>{{completed}}</dd></div>
+    </dl>
+    <div class="workspace" [class.admin]="admin">
+    @if (admin) {
+      <section><h2>Registered users</h2>
+      @for (u of users; track u.id) {
+        <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}</p></div>
+                <div class="actions"><span class="account-status" [class.active]="u.is_active">{{u.is_active === true ? 'Active' : u.is_active === false ? 'Inactive' : 'Status unavailable'}}</span>
+        <button [disabled]="busy" (click)="rename(u)">Edit name</button>
+        @if (u.id !== api.session.user.id && u.is_active != null) {
+          <button [disabled]="busy" (click)="changeAccess(u)">{{u.is_active ? 'Deactivate' : 'Activate'}}</button>
+        }</div></article>
+      } @empty { <p>No registered users.</p> }
+      </section>
+    } @else {
+      <section class="editor"><h2>{{editing === undefined ? 'Add task' : 'Edit task'}}</h2>
+      <form #taskForm="ngForm" (ngSubmit)="save()">
+        <label>Title<input #titleInput required maxlength="200" name="title" [(ngModel)]="draft.title"></label>
+        <label>Description<textarea name="description" [(ngModel)]="draft.description"></textarea></label>
+        <div class="row"><label>Priority<select name="priority" [(ngModel)]="draft.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+        <label>Due date<input type="date" name="date" [(ngModel)]="draft.due_date"></label></div>
+        <div class="actions"><button class="primary" [disabled]="busy || taskForm.invalid || !draft.title.trim()">{{editing === undefined ? 'Add task' : 'Save changes'}}</button>
+        @if (editing !== undefined) { <button type="button" [disabled]="busy" (click)="resetForm()">Cancel</button> }</div>
+      </form></section>
+    }
+    <section class="task-list"><h2>{{admin ? 'All tasks' : 'Task list'}}</h2>
+    <div class="filters" role="group" aria-label="Task status">
+      @for (status of ['all', 'pending', 'completed']; track status) {
+        <button type="button" [attr.aria-pressed]="filter === status" (click)="filter = status">{{status}}</button>
+      }
+    </div>
+    <div class="row">
+      <label>Search by title<input type="search" [(ngModel)]="query"></label>
+      @if (admin) {
+        <label>Task owner<select name="owner" [(ngModel)]="ownerId">
+          <option [ngValue]="null">All owners</option>
+          @for (owner of users; track owner.id) {
+            <option [ngValue]="owner.id">{{ownerLabels.get(owner.id)}}</option>
+          }
+        </select></label>
+      }
+      <label>Sort by<select [(ngModel)]="sort"><option value="default">Default order</option><option value="due">Due date</option><option value="title">Title</option></select></label>
+    </div>
+    @for (t of visible; track t.id) {
+      <article [class.done]="t.status === 'completed'">
+        <div class="task-details">
+          <strong class="task-title">{{t.title}}</strong>
+          @if (t.description) { <p>{{t.description}}</p> }
+          <div class="task-meta">
+            <span class="badge" [class.complete]="t.status === 'completed'">{{t.status}}</span>
+            <span class="priority" [attr.data-priority]="t.priority">{{t.priority}} priority</span>
+            @if (t.due_date) { <span>Due <time [attr.datetime]="t.due_date.slice(0,10)">{{(t.due_date.slice(0,10) + 'T00:00:00Z') | date:'mediumDate':'UTC'}}</time></span> }
+            @if (admin) { <span>Assigned to <strong>{{ownerLabels.get(t.user_id) || ("User #" + t.user_id)}}</strong></span> }
+          </div>
+        </div>
+      @if (!admin) { <div class="actions">
+        <button [disabled]="busy" (click)="toggle(t)">{{t.status === 'pending' ? 'Mark completed' : 'Reopen'}}</button>
+        <button [disabled]="busy" (click)="edit(t)">Edit</button><button class="danger" [disabled]="busy" (click)="remove(t)">Delete</button>
+      </div> }</article>
+    } @empty {
+      <div class="empty-list">
+        @if (query || filter !== 'all' || ownerId !== null) {
+          <p>No tasks match this view.</p>
+          <button type="button" class="text-button" (click)="query = ''; filter = 'all'; ownerId = null">Clear filters</button>
+        } @else {
+          <p>{{admin ? 'No tasks have been added yet.' : 'Add your first task to see it here.'}}</p>
+        }
+      </div>
+    }
+    </section></div>
+  }
+}
+</main>
