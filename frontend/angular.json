@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "projects": {
+    "todo": {
+      "projectType": "application", "root": "", "sourceRoot": "src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts", "index": "src/index.html",
+            "polyfills": ["zone.js"], "tsConfig": "tsconfig.json",
+            "outputPath": "dist/todo", "styles": ["src/styles.css"]
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {"buildTarget": "todo:build", "proxyConfig": "proxy.json"}
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": false
+  }
+}
