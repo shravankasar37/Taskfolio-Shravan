@@ -5,3 +5,8 @@ import pg from 'pg';
 pg.types.setTypeParser(1082, (value) => value);
 
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+// If the database drops an idle connection, log it instead of crashing the server.
+pool.on('error', (error) => {
+  console.error('Unexpected database error:', error.message);
+});
