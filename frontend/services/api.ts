@@ -70,6 +70,7 @@ export class Api {
       : this.request('PUT', '/tasks/' + id, draft);
   }
   deleteTask(id: number) { return this.request('DELETE', '/tasks/' + id); }
+  setTaskStatus(id: number, status: Task['status']) { return this.request('PATCH', '/tasks/' + id, {status}); }
   renameUser(id: number, name: string) { return this.request('PATCH', '/admin/users/' + id, {name}); }
   setUserActive(id: number, active: boolean) {
     return this.request('PATCH', '/admin/users/' + id, {is_active: active});

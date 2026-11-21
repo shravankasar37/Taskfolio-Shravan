@@ -17,6 +17,11 @@ class App {
   private titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput');
   register = false;
   showPassword = false;
+  confirmation = '';
+  editorOpen = false;
+  renamingId?: number;
+  displayName = '';
+  deactivatingId?: number;
   email = ''; password = ''; name = '';
   busy = false; notice = ''; error = ''; loaded = false;
   tasksUnavailable = false; usersUnavailable = false;
@@ -90,12 +95,13 @@ class App {
     this.register = !this.register;
     this.showPassword = false;
     this.password = '';
+    this.confirmation = '';
     this.error = '';
     this.notice = '';
-    form.resetForm({name: this.name, email: this.email.trim(), password: ''});
+    form.resetForm({name: this.name, email: this.email.trim(), password: '', confirmation: ''});
   }
   signIn(form: NgForm) {
-    if (form.invalid || (this.register && !this.name.trim())) return;
+    if (form.invalid || (this.register && (!this.name.trim() || this.password !== this.confirmation))) return;
     return this.run(async () => {
       if (this.register) {
         await this.api.register(this.name.trim(), this.email.trim(), this.password);
@@ -110,12 +116,25 @@ class App {
       this.password = '';
     });
   }
-  resetForm() { this.editing = undefined; this.draft = emptyTask(); }
+  resetForm() { this.editing = undefined; this.draft = emptyTask(); this.editorOpen = false; }
+  openEditor() {
+    this.editorOpen = true;
+    requestAnimationFrame(() => this.titleInput()?.nativeElement.focus());
+  }
+  dueLabel(t: Task) {
+    if (!t.due_date || t.status === 'completed') return '';
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = (Date.parse(t.due_date.slice(0, 10) + 'T00:00:00Z') - today) / 86400000;
+    if (days < 0) return Math.abs(days) + (days === -1 ? ' day overdue' : ' days overdue');
+    if (days === 0) return 'Due today';
+    return days === 1 ? 'Due tomorrow' : '';
+  }
   edit(t: Task) {
     this.editing = t.id;
     this.draft = {title:t.title, description:t.description, priority:t.priority,
       due_date:t.due_date?.slice(0,10) || null, status:t.status};
-    this.titleInput()?.nativeElement.focus();
+    this.openEditor();
   }
   save() {
     return this.run(async () => {
@@ -124,10 +143,9 @@ class App {
     });
   }
   toggle(t: Task) {
-    const {title, description, priority, due_date} = t;
     return this.run(async () => {
-      await this.api.saveTask({title, description, priority, due_date,
-        status:t.status === 'pending' ? 'completed' : 'pending'}, t.id);
+      await this.api.setTaskStatus(t.id, t.status === 'pending' ? 'completed' : 'pending');
+      if (this.editing === t.id) this.draft.status = t.status === 'pending' ? 'completed' : 'pending';
       await this.refresh();
     });
   }
@@ -137,23 +155,26 @@ class App {
     });
   }
   rename(u: User) {
-    const name = prompt('Update display name', u.name)?.trim();
-    if (name && name.length > 100) {
-      this.error = 'Use 100 characters or fewer for the display name.';
-      return;
-    }
-    if (name && name !== u.name) this.run(async () => { await this.api.renameUser(u.id, name); await this.refresh(); });
+    const name = this.displayName.trim();
+    if (!name || name.length > 100) return;
+    return this.run(async () => {
+      await this.api.renameUser(u.id, name);
+      this.renamingId = undefined;
+      await this.refresh();
+    });
   }
   changeAccess(user: User) {
     if (user.id === this.api.session?.user.id || typeof user.is_active !== 'boolean') return;
-    if (user.is_active && !confirm('Deactivate ' + user.name + ' and remove their access?')) return;
+    if (user.is_active && this.deactivatingId !== user.id) return;
     return this.run(async () => {
       await this.api.setUserActive(user.id, !user.is_active);
+      this.deactivatingId = undefined;
       await this.refresh();
     });
   }
   reload() { return this.run(() => this.refresh()); }
   logout() {
+    this.renamingId = undefined; this.deactivatingId = undefined; this.displayName = '';
     this.ownerLabels.clear(); this.ownerId = null;
     this.api.logout(); this.tasks = []; this.users = []; this.loaded = false;
     this.email = ''; this.password = ''; this.name = ''; this.query = ''; this.filter = 'all';

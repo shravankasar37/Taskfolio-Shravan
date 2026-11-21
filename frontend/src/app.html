@@ -58,11 +58,22 @@
       </div>
       <small id="password-feedback" [class.field-error]="(secret.touched || auth.submitted) && secret.invalid">@if (register) { Use 6–72 characters. } @else if ((secret.touched || auth.submitted) && secret.invalid) { Enter your password. }</small>
     </div>
+    @if (register) {
+      <div class="auth-field">
+        <label for="auth-confirm">Confirm password</label>
+        <input id="auth-confirm" required [type]="showPassword ? 'text' : 'password'" autocomplete="new-password" name="confirmation"
+          [(ngModel)]="confirmation" #confirmField="ngModel" [readOnly]="busy" aria-describedby="confirm-feedback"
+          [attr.aria-invalid]="(confirmField.touched || auth.submitted) && (!confirmation || confirmation !== password)">
+        <small id="confirm-feedback" class="field-error">@if ((confirmField.touched || auth.submitted) && (!confirmation || confirmation !== password)) { Enter the same password in both fields. }</small>
+      </div>
+    }
     <button class="primary" [disabled]="busy">{{register ? 'Register' : 'Sign in'}}</button>
   </form>
   <button class="text-button" [disabled]="busy" (click)="switchAuth(auth)">{{register ? 'Back to sign in' : 'Create an account'}}</button></div></section>
 } @else {
-  <h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
+  <div class="dashboard-heading"><h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
+    @if (!admin && loaded) { <button class="primary" [disabled]="busy" (click)="editing !== undefined && resetForm(); openEditor()">+ Add task</button> }
+  </div>
   @if (!loaded && !busy) { <button (click)="reload()">Retry loading dashboard</button> }
   @if (loaded) {
     @if (!tasksUnavailable) {
@@ -82,25 +93,38 @@
       @for (u of users; track u.id) {
         <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}</p></div>
                 <div class="actions"><span class="account-status" [class.active]="u.is_active">{{u.is_active === true ? 'Active' : u.is_active === false ? 'Inactive' : 'Status unavailable'}}</span>
-        <button [disabled]="busy" (click)="rename(u)">Edit name</button>
+        <button [disabled]="busy || tasksUnavailable" (click)="ownerId = u.id; filter = 'all'; query = ''; listHeading.focus()">View tasks</button>
+        <button [disabled]="busy" (click)="renamingId = u.id; displayName = u.name; deactivatingId = undefined">Edit name</button>
         @if (u.id !== api.session.user.id && u.is_active != null) {
-          <button [disabled]="busy" (click)="changeAccess(u)">{{u.is_active ? 'Deactivate' : 'Activate'}}</button>
-        }</div></article>
+          <button [disabled]="busy" (click)="u.is_active ? (deactivatingId = u.id) : changeAccess(u); renamingId = undefined">{{u.is_active ? 'Deactivate' : 'Activate'}}</button>
+        }</div>
+        @if (renamingId === u.id) {
+          <form class="account-edit" (ngSubmit)="rename(u)">
+            <label>Display name<input name="displayName" required maxlength="100" [(ngModel)]="displayName" [disabled]="busy"></label>
+            <div class="actions"><button class="primary" [disabled]="busy || !displayName.trim()">Save</button>
+              <button type="button" [disabled]="busy" (click)="renamingId = undefined">Cancel</button></div>
+          </form>
+        }
+        @if (deactivatingId === u.id && u.is_active) {
+          <div class="account-edit"><p>Deactivate <strong>{{u.name}}</strong> ({{u.email}})? They will lose access until you activate their account again.</p>
+            <div class="actions"><button class="danger" [disabled]="busy" (click)="changeAccess(u)">Confirm deactivation</button>
+              <button [disabled]="busy" (click)="deactivatingId = undefined">Cancel</button></div></div>
+        }</article>
       } @empty { <p>No registered users.</p> }
       }
       </section>
     } @else {
-      <section class="editor"><h2>{{editing === undefined ? 'Add task' : 'Edit task'}}</h2>
+      <section class="editor" [class.open]="editorOpen"><h2>{{editing === undefined ? 'Add task' : 'Edit task'}}</h2>
       <form #taskForm="ngForm" (ngSubmit)="save()">
         <label>Title<input #titleInput required maxlength="200" [disabled]="busy" name="title" [(ngModel)]="draft.title"></label>
         <label>Description<textarea [disabled]="busy" name="description" [(ngModel)]="draft.description"></textarea></label>
         <div class="row"><label>Priority<select [disabled]="busy" name="priority" [(ngModel)]="draft.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
         <label>Due date<input type="date" [disabled]="busy" name="date" [(ngModel)]="draft.due_date"></label></div>
         <div class="actions"><button class="primary" [disabled]="busy || taskForm.invalid || !draft.title.trim()">{{editing === undefined ? 'Add task' : 'Save changes'}}</button>
-        @if (editing !== undefined) { <button type="button" [disabled]="busy" (click)="resetForm()">Cancel</button> }</div>
+        @if (editorOpen) { <button type="button" [disabled]="busy" (click)="resetForm()">Cancel</button> }</div>
       </form></section>
     }
-    <section class="task-list"><h2>{{admin ? 'All tasks' : 'Task list'}}</h2>
+    <section class="task-list"><h2 tabindex="-1" #listHeading>{{admin ? 'All tasks' : 'Task list'}}</h2>
     @if (tasksUnavailable) {
       <p role="alert">Tasks and statistics could not be loaded.</p>
       <button [disabled]="busy" (click)="reload()">Retry loading tasks</button>
@@ -125,19 +149,29 @@
     @for (t of visible; track t.id) {
       <article [class.done]="t.status === 'completed'">
         <div class="task-details">
-          <strong class="task-title">{{t.title}}</strong>
+          <div class="task-line">
+            @if (!admin) {
+              <input type="checkbox" [checked]="t.status === 'completed'" [disabled]="busy"
+                [attr.aria-label]="(t.status === 'completed' ? 'Reopen ' : 'Mark completed: ') + t.title"
+                (click)="$event.preventDefault(); toggle(t)">
+            }
+            <strong class="task-title">{{t.title}}</strong>
+            @if (!admin) {
+              <details class="task-menu" #menu><summary [attr.aria-label]="'More actions for ' + t.title">More actions</summary>
+                <div><button [disabled]="busy" (click)="menu.open = false; edit(t)">Edit</button>
+                  <button class="danger" [disabled]="busy" (click)="menu.open = false; remove(t)">Delete</button></div>
+              </details>
+            }
+          </div>
           @if (t.description) { <p>{{t.description}}</p> }
           <div class="task-meta">
             <span class="badge" [class.complete]="t.status === 'completed'">{{t.status}}</span>
             <span class="priority" [attr.data-priority]="t.priority">{{t.priority}} priority</span>
-            @if (t.due_date) { <span>Due <time [attr.datetime]="t.due_date.slice(0,10)">{{(t.due_date.slice(0,10) + 'T00:00:00Z') | date:'mediumDate':'UTC'}}</time></span> }
+            @if (t.due_date) { <span>@if (dueLabel(t); as urgency) { <b>{{urgency}}</b> · } @else { Due }<time [attr.datetime]="t.due_date.slice(0,10)">{{(t.due_date.slice(0,10) + 'T00:00:00Z') | date:'mediumDate':'UTC'}}</time></span> }
             @if (admin) { <span>Assigned to <strong>{{ownerLabels.get(t.user_id) || ("User #" + t.user_id)}}</strong></span> }
           </div>
         </div>
-      @if (!admin) { <div class="actions">
-        <button [disabled]="busy" (click)="toggle(t)">{{t.status === 'pending' ? 'Mark completed' : 'Reopen'}}</button>
-        <button [disabled]="busy" (click)="edit(t)">Edit</button><button class="danger" [disabled]="busy" (click)="remove(t)">Delete</button>
-      </div> }</article>
+      </article>
     } @empty {
       <div class="empty-list">
         @if (query || filter !== 'all' || ownerId !== null) {

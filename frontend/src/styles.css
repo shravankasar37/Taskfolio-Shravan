@@ -93,6 +93,16 @@ button:disabled { opacity: .58; cursor: default; }
 .password-control input { padding-right: 4.2rem; }
 .password-control button { position: absolute; inset: 1px 1px 1px auto; min-height: 0; border: 0; background: transparent; color: var(--accent); }
 .text-button { margin-top: 1rem; border: 0; padding-inline: 0; background: transparent; color: var(--accent); text-decoration: underline; text-underline-offset: .2rem; }
+.auth .password-control button:hover:enabled, .auth .text-button:hover:enabled { background: transparent; }
+.dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.dashboard-heading h1 { margin: 0; }
+.dashboard-heading button { flex: none; }
+.account-edit { flex-basis: 100%; padding: .85rem; border: 1px solid var(--line); border-radius: .55rem; }
+.task-line { display: flex; align-items: baseline; gap: .6rem; }
+.task-line input { align-self: flex-start; width: 1.25rem; height: 1.25rem; flex: none; margin: .2rem 0 0; accent-color: var(--accent); cursor: pointer; }
+.task-menu { flex: none; margin-left: auto; }
+.task-menu summary { cursor: pointer; color: var(--accent); padding: .35rem 0; font-size: .85rem; }
+.task-menu button { display: block; width: 100%; margin-top: .25rem; }
 :focus-visible { outline: 3px solid #665ed2; outline-offset: 3px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-bottom: 1.4rem; }
 .stats div { padding: clamp(.8rem, 2vw, 1.6rem); border-radius: .8rem; background: #e4e0fa; }
@@ -136,6 +146,7 @@ article small { display: inline-block; color: var(--muted); }
 [role=alert] { color: #812f31; background: #ffebea; }
 @media (max-width: 52rem) {
   .workspace, .workspace.admin { grid-template-columns: 1fr; }
+  .editor:not(.open) { display: none; }
 }
 @media (max-width: 40rem) {
   main, .masthead-inner { width: calc(100% - 1.5rem); }
