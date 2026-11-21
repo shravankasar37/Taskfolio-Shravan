@@ -2,7 +2,7 @@ import { Component, ElementRef, inject, viewChild } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideHttpClient, HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Api, Draft, Task, User } from '../services/api';
 
 function emptyTask(): Draft {
@@ -16,6 +16,7 @@ class App {
   api = inject(Api);
   private titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput');
   register = false;
+  showPassword = false;
   email = ''; password = ''; name = '';
   busy = false; notice = ''; error = ''; loaded = false;
   tasksUnavailable = false; usersUnavailable = false;
@@ -85,13 +86,24 @@ class App {
     if (this.ownerId !== null && !this.ownerLabels.has(this.ownerId)) this.ownerId = null;
     this.users = users;
   }
-  signIn() {
+  switchAuth(form: NgForm) {
+    this.register = !this.register;
+    this.showPassword = false;
+    this.password = '';
+    this.error = '';
+    this.notice = '';
+    form.resetForm({name: this.name, email: this.email.trim(), password: ''});
+  }
+  signIn(form: NgForm) {
+    if (form.invalid || (this.register && !this.name.trim())) return;
     return this.run(async () => {
       if (this.register) {
         await this.api.register(this.name.trim(), this.email.trim(), this.password);
-        this.register = false; this.notice = 'Account created. Sign in to continue.';
+        this.switchAuth(form);
+        this.notice = 'Account created. Sign in to open your dashboard.';
       } else {
         await this.api.login(this.email.trim(), this.password);
+        this.showPassword = false;
         this.password = '';
         await this.refresh();
       }

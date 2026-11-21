@@ -32,13 +32,35 @@
       </div>
     </div>
     <div class="auth-body"><h1>{{register ? 'Create an account' : 'Sign in'}}</h1>
-  <p class="intro">{{register ? 'Create your login to start adding tasks.' : 'Sign in to your task dashboard.'}}</p><form #auth="ngForm" (ngSubmit)="signIn()">
-    @if (register) { <label>Name<input required maxlength="100" name="name" autocomplete="name" [(ngModel)]="name"></label> }
-    <label>Email<input required maxlength="255" email type="email" autocomplete="email" name="email" [(ngModel)]="email"></label>
-    <label>Password<input required type="password" [attr.autocomplete]="register ? 'new-password' : 'current-password'" name="password" [(ngModel)]="password"></label>
-    <button class="primary" [disabled]="busy || auth.invalid || (register && !name.trim())">{{register ? 'Register' : 'Sign in'}}</button>
+  <p class="intro">{{register ? 'Create your login to start adding tasks.' : 'Sign in to your task dashboard.'}}</p>
+  <form #auth="ngForm" (ngSubmit)="signIn(auth)">
+    @if (register) {
+      <div class="auth-field">
+        <label for="auth-name">Name</label>
+        <input id="auth-name" required maxlength="100" name="name" autocomplete="name" [(ngModel)]="name" #fullName="ngModel" [readOnly]="busy"
+          [attr.aria-invalid]="(fullName.touched || auth.submitted) && !name.trim()" aria-describedby="name-feedback">
+        <small id="name-feedback" class="field-error">@if ((fullName.touched || auth.submitted) && !name.trim()) { Enter your name. }</small>
+      </div>
+    }
+    <div class="auth-field">
+      <label for="auth-email">Email</label>
+      <input id="auth-email" required maxlength="255" email type="email" autocomplete="username" name="email" [(ngModel)]="email" #address="ngModel" [readOnly]="busy"
+        [attr.aria-invalid]="(address.touched || auth.submitted) && address.invalid" aria-describedby="email-feedback">
+      <small id="email-feedback" class="field-error">@if ((address.touched || auth.submitted) && address.invalid) { Enter a valid email address. }</small>
+    </div>
+    <div class="auth-field">
+      <label for="auth-password">Password</label>
+      <div class="password-control">
+        <input id="auth-password" required [type]="showPassword ? 'text' : 'password'" [minlength]="register ? 6 : 0" [attr.maxlength]="register ? 72 : null"
+          [attr.autocomplete]="register ? 'new-password' : 'current-password'" name="password" [(ngModel)]="password" #secret="ngModel" [readOnly]="busy"
+          [attr.aria-invalid]="(secret.touched || auth.submitted) && secret.invalid" aria-describedby="password-feedback">
+        <button type="button" [disabled]="busy" aria-controls="auth-password" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" (click)="showPassword = !showPassword">{{showPassword ? 'Hide' : 'Show'}}</button>
+      </div>
+      <small id="password-feedback" [class.field-error]="(secret.touched || auth.submitted) && secret.invalid">@if (register) { Use 6–72 characters. } @else if ((secret.touched || auth.submitted) && secret.invalid) { Enter your password. }</small>
+    </div>
+    <button class="primary" [disabled]="busy">{{register ? 'Register' : 'Sign in'}}</button>
   </form>
-  <button class="text-button" [disabled]="busy" (click)="register = !register; password = ''; error = ''; notice = ''">{{register ? 'Back to sign in' : 'Create an account'}}</button></div></section>
+  <button class="text-button" [disabled]="busy" (click)="switchAuth(auth)">{{register ? 'Back to sign in' : 'Create an account'}}</button></div></section>
 } @else {
   <h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
   @if (!loaded && !busy) { <button (click)="reload()">Retry loading dashboard</button> }

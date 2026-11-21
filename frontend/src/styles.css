@@ -84,6 +84,14 @@ button:disabled { opacity: .58; cursor: default; }
 .primary { color: white; background: var(--accent); border-color: var(--accent); }
 .primary:hover:enabled { background: #382e8d; }
 .auth .primary { margin-top: .35rem; padding: .75rem; }
+.auth-field { display: grid; gap: .35rem; min-width: 0; }
+.auth-field small { color: var(--muted); }
+.auth-field small:empty { display: none; }
+.auth-field .field-error { color: #812f31; }
+.auth-field input[aria-invalid=true] { border-color: #a14545; }
+.password-control { position: relative; }
+.password-control input { padding-right: 4.2rem; }
+.password-control button { position: absolute; inset: 1px 1px 1px auto; min-height: 0; border: 0; background: transparent; color: var(--accent); }
 .text-button { margin-top: 1rem; border: 0; padding-inline: 0; background: transparent; color: var(--accent); text-decoration: underline; text-underline-offset: .2rem; }
 :focus-visible { outline: 3px solid #665ed2; outline-offset: 3px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-bottom: 1.4rem; }
