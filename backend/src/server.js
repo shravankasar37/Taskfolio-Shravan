@@ -1,4 +1,6 @@
 import Fastify from 'fastify';
+import staticFiles from '@fastify/static';
+import { fileURLToPath } from 'node:url';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import { pool } from './db.js';
@@ -46,4 +48,10 @@ await app.register(authRoutes, { prefix: '/api/auth' });
 await app.register(taskRoutes, { prefix: '/api/tasks' });
 await app.register(adminRoutes, { prefix: '/api/admin' });
 
-await app.listen({ port: Number(process.env.PORT) || 5000, host: 'localhost' });
+const production = process.env.NODE_ENV === 'production';
+if (production) {
+  await app.register(staticFiles, {
+    root: fileURLToPath(new URL('../../frontend/dist/todo/browser/', import.meta.url))
+  });
+}
+await app.listen({ port: Number(process.env.PORT) || 5000, host: production ? '0.0.0.0' : 'localhost' });
