@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: grp10-todo
+    name: taskfolio
     runtime: node
     plan: free
     branch: main
