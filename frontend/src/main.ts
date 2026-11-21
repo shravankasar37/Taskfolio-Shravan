@@ -32,6 +32,7 @@ class App {
   sort = 'default';
   draft = emptyTask(); editing?: number;
   get admin() { return this.api.session?.user.role === 'admin'; }
+  get otherUsers() { return this.users.filter(user => user.id !== this.api.session?.user.id); }
   ngOnInit() {
     if (this.api.session) void this.reload();
   }

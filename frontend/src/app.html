@@ -90,7 +90,7 @@
         <p role="alert">The user list could not be loaded.</p>
         <button [disabled]="busy" (click)="reload()">Retry loading users</button>
       } @else {
-      @for (u of users; track u.id) {
+      @for (u of otherUsers; track u.id) {
         <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}</p></div>
                 <div class="actions"><span class="account-status" [class.active]="u.is_active">{{u.is_active === true ? 'Active' : u.is_active === false ? 'Inactive' : 'Status unavailable'}}</span>
         <button [disabled]="busy || tasksUnavailable" (click)="ownerId = u.id; filter = 'all'; query = ''; listHeading.focus()">View tasks</button>
@@ -110,7 +110,7 @@
             <div class="actions"><button class="danger" [disabled]="busy" (click)="changeAccess(u)">Confirm deactivation</button>
               <button [disabled]="busy" (click)="deactivatingId = undefined">Cancel</button></div></div>
         }</article>
-      } @empty { <p>No registered users.</p> }
+      } @empty { <p>No other accounts have registered yet.</p> }
       }
       </section>
     } @else {
