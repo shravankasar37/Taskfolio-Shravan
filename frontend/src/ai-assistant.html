@@ -1,0 +1,189 @@
+<section class="ai-assistant" aria-labelledby="ai-heading">
+  <div class="ai-head">
+    <h2 id="ai-heading">✨ AI Assistant</h2>
+    @if (info) {
+      <p class="ai-providers">
+        @for (p of providers; track p) {
+          <span class="provider-chip" [attr.data-provider]="p" [class.off]="!info.providers[p].configured">
+            {{info.providers[p].label}} · {{info.providers[p].model}}{{info.providers[p].configured ? '' : ' (not set up)'}}
+          </span>
+        }
+        @if (info.mock) { <span class="mock-chip" title="Local testing only – fake replies, not counted in the comparison">MOCK MODE</span> }
+      </p>
+    }
+  </div>
+
+  @if (infoError) { <p role="alert">{{infoError}}</p> }
+  @if (info) {
+    <div class="ai-features" role="tablist" aria-label="AI features">
+      @for (f of info.features; track f.id) {
+        <button type="button" role="tab" [attr.aria-selected]="feature === f.id" (click)="select(f.id)">
+          <span aria-hidden="true">{{about[f.id]?.icon}}</span> {{f.label}}
+        </button>
+      }
+    </div>
+
+    @if (feature) {
+      <div class="ai-panel" role="tabpanel">
+        <p class="ai-hint">{{about[feature]?.hint}}</p>
+
+        <form class="ai-input" (ngSubmit)="run(['gemini', 'grok'])">
+          @switch (feature) {
+            @case ('daily-planner') {
+              <div class="row">
+                <label>Start<input type="time" name="start" [(ngModel)]="input.start_time" required></label>
+                <label>End<input type="time" name="end" [(ngModel)]="input.end_time" required></label>
+              </div>
+              <small>Plans your {{pending.length}} pending task(s).</small>
+            }
+            @case ('overdue-rescue') { <small>Uses your overdue tasks and upcoming workload.</small> }
+            @case ('weekly-report') { <small>Uses your task activity from the last 7 days.</small> }
+            @case ('time-estimate') {
+              <label>Choose a task<select name="taskId" [(ngModel)]="input.task_id">
+                <option [ngValue]="null">— or type a new task below —</option>
+                @for (t of pending; track t.id) { <option [ngValue]="t.id">{{t.title}}</option> }
+              </select></label>
+              @if (!input.task_id) {
+                <label>Task title<input name="etitle" maxlength="200" [(ngModel)]="input.title" placeholder="e.g. Build login page"></label>
+                <label>Details (optional)<textarea name="edesc" [(ngModel)]="input.description"></textarea></label>
+              }
+            }
+            @case ('due-date') {
+              <label>Task title<input name="dtitle" maxlength="200" [(ngModel)]="input.title" placeholder="e.g. Prepare presentation slides"></label>
+              <div class="row">
+                <label>Priority<select name="dprio" [(ngModel)]="input.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+              </div>
+              <label>Details (optional)<textarea name="ddesc" [(ngModel)]="input.description"></textarea></label>
+            }
+            @case ('description') {
+              <label>Task title<input name="wtitle" maxlength="200" [(ngModel)]="input.title" placeholder="e.g. Fix login bug"></label>
+              <label>Priority<select name="wprio" [(ngModel)]="input.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+            }
+            @case ('ask') {
+              <label>Your question<input name="q" maxlength="300" [(ngModel)]="input.question" placeholder="What is due this week?"></label>
+            }
+            @case ('notification-writer') {
+              <label>Rough note<textarea name="draft" maxlength="1000" [(ngModel)]="input.draft" placeholder="meeting tmrw 12:45 for grp 10, bring demo ready"></textarea></label>
+              <div class="row">
+                <label>Tone<select name="tone" [(ngModel)]="input.tone"><option value="friendly">Friendly</option><option value="formal">Formal</option><option value="urgent">Urgent</option></select></label>
+                <label>Audience<input name="aud" maxlength="50" [(ngModel)]="input.audience"></label>
+              </div>
+            }
+          }
+          <div class="actions ai-run">
+            <button type="button" class="gemini-btn" [disabled]="running || !canRun()" (click)="run(['gemini'])">Generate with Gemini</button>
+            <button type="button" class="grok-btn" [disabled]="running || !canRun()" (click)="run(['grok'])">Generate with Grok</button>
+            <button class="primary" [disabled]="running || !canRun()">⚖️ Compare both</button>
+          </div>
+        </form>
+
+        @if (notice) { <p role="status">{{notice}}</p> }
+
+        <div class="ai-results" [class.single]="(results.gemini ? 1 : 0) + (results.grok ? 1 : 0) === 1">
+          @for (p of providers; track p) {
+            @if (results[p]; as r) {
+              <article class="ai-result" [attr.data-provider]="p">
+                <header>
+                  <strong>{{providerName(p)}}</strong>
+                  @if (r.state === 'loading') { <span class="time">Thinking…</span> }
+                  @if (r.data) {
+                    <span class="time" [class.fast]="faster === p">⏱ {{seconds(r.data.elapsedMs)}}{{faster === p ? ' · faster' : ''}}</span>
+                    <small>{{r.data.model}}{{r.data.mock ? ' · mock' : ''}}</small>
+                  }
+                </header>
+                @if (r.state === 'error') { <p role="alert">{{r.error}}</p> }
+                @if (r.data; as d) {
+                  @switch (d.feature) {
+                    @case ('daily-planner') {
+                      <p class="lead">{{d.result.summary}}</p>
+                      <ol class="timeline">
+                        @for (s of d.result.plan; track $index) {
+                          <li [class.break]="!s.task_id"><b>{{s.start}}–{{s.end}}</b> {{s.title}} @if (s.note) { <small>{{s.note}}</small> }</li>
+                        }
+                      </ol>
+                      @if (d.result.not_scheduled.length) {
+                        <p class="sub">Left for later:</p>
+                        <ul>@for (s of d.result.not_scheduled; track s.task_id) { <li>{{s.title}} – <small>{{s.reason}}</small></li> }</ul>
+                      }
+                    }
+                    @case ('overdue-rescue') {
+                      <p class="lead">{{d.result.summary}}</p>
+                      @if (d.result.do_today.length) {
+                        <p class="sub">Do today:</p>
+                        <ul>@for (s of d.result.do_today; track s.task_id) { <li><b>{{s.title}}</b> – {{s.first_step}}</li> }</ul>
+                      }
+                      @if (d.result.reschedule.length) {
+                        <p class="sub">New due dates:</p>
+                        <ul>@for (s of d.result.reschedule; track s.task_id) { <li><b>{{s.title}}</b> → {{s.new_due_date}} <small>{{s.reason}}</small></li> }</ul>
+                        <button type="button" [disabled]="applying" (click)="applyReschedule(d)">Apply these dates</button>
+                      }
+                      @if (d.result.tips.length) { <ul class="tips">@for (t of d.result.tips; track $index) { <li>💡 {{t}}</li> }</ul> }
+                    }
+                    @case ('time-estimate') {
+                      <p class="big">{{duration(d.result.estimated_minutes)}}</p>
+                      <p><span class="badge">{{d.result.confidence}} confidence</span> {{d.result.reasoning}}</p>
+                      @if (d.result.steps.length) { <ul>@for (s of d.result.steps; track $index) { <li>{{s.step}} <small>~{{s.minutes}} min</small></li> }</ul> }
+                      @if (d.result.task_id) { <button type="button" [disabled]="applying" (click)="saveEstimate(d)">Save estimate to task</button> }
+                    }
+                    @case ('weekly-report') {
+                      <p class="lead">{{d.result.headline}}</p>
+                      @if (d.result.score !== null) { <p class="big">{{d.result.score}}<small>/100</small></p> }
+                      <p class="sub">✅ Completed {{d.result.stats.completed}} · ⏰ late {{d.result.stats.completed_late}} · 📌 pending {{d.result.stats.still_pending}} · ⚠️ overdue {{d.result.stats.overdue_now}}</p>
+                      @if (d.result.highlights.length) { <p class="sub">Highlights</p><ul>@for (t of d.result.highlights; track $index) { <li>{{t}}</li> }</ul> }
+                      @if (d.result.concerns.length) { <p class="sub">Needs attention</p><ul>@for (t of d.result.concerns; track $index) { <li>{{t}}</li> }</ul> }
+                      @if (d.result.tips.length) { <ul class="tips">@for (t of d.result.tips; track $index) { <li>💡 {{t}}</li> }</ul> }
+                    }
+                    @case ('due-date') {
+                      <p class="big">{{d.result.due_date}} <small>{{d.result.weekday}}</small></p>
+                      <p>{{d.result.reason}}</p>
+                      <button type="button" (click)="useDueDate(d)">Create task with this date</button>
+                    }
+                    @case ('description') {
+                      <p class="lead">{{d.result.description}}</p>
+                      <ul class="checklist">@for (s of d.result.checklist; track $index) { <li>{{s}}</li> }</ul>
+                      <button type="button" (click)="useDescription(d)">Use in a new task</button>
+                    }
+                    @case ('ask') {
+                      <p class="lead">{{d.result.answer}}</p>
+                      @if (d.result.tasks.length) {
+                        <ul>@for (t of d.result.tasks; track t.id) { <li>{{t.title}} <small>{{t.status}}{{t.due_date ? ' · due ' + t.due_date : ''}}</small></li> }</ul>
+                      }
+                    }
+                    @case ('notification-writer') {
+                      <p class="lead"><b>{{d.result.title}}</b></p>
+                      <p>{{d.result.message}}</p>
+                      <small>{{d.result.tone_notes}}</small>
+                      <button type="button" (click)="useNotification.emit({ title: d.result.title, message: d.result.message })">Use in notification</button>
+                    }
+                  }
+                }
+              </article>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    <details class="ai-stats" (toggle)="loadStats()">
+      <summary>📊 Gemini vs Grok – speed comparison</summary>
+      @if (statFeatures().length) {
+        <table>
+          <thead><tr><th>Feature</th><th>Gemini avg</th><th>Grok avg</th><th>Runs (ok)</th></tr></thead>
+          <tbody>
+            @for (f of statFeatures(); track f) {
+              <tr>
+                <td>{{featureLabel(f)}}</td>
+                <td>{{seconds(stat(f, 'gemini')?.avg_ms)}}</td>
+                <td>{{seconds(stat(f, 'grok')?.avg_ms)}}</td>
+                <td>G {{stat(f, 'gemini')?.ok_runs ?? 0}}/{{stat(f, 'gemini')?.runs ?? 0}} · X {{stat(f, 'grok')?.ok_runs ?? 0}}/{{stat(f, 'grok')?.runs ?? 0}}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <small>Average response time of successful real API calls. Use these numbers in the comparison document.</small>
+      } @else {
+        <p>No real AI runs yet. Run a feature with "Compare both" to start collecting timings.</p>
+      }
+    </details>
+  }
+</section>

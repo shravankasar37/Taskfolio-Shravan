@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: taskfolio
+    name: taskfolio-shravan
     runtime: node
     plan: free
     branch: main
@@ -16,3 +16,13 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: XAI_MODEL
+        value: grok-3-mini
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata

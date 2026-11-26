@@ -1,15 +1,42 @@
 @if (api.session) {
-<header class="masthead">
+<header class="masthead" [class.admin-mode]="admin">
   <div class="masthead-inner">
     <div class="brand">
       <span class="notebook-mark" aria-hidden="true">✓</span>
       <strong>Taskfolio</strong>
+      @if (admin) { <span class="role-badge">ADMIN</span> }
     </div>
     <div class="account">
-
-        <span class="account-name">{{api.session.user.name}}</span>
-        <button [disabled]="busy" (click)="logout()">Sign out</button>
-
+      <button type="button" class="icon-button" (click)="toggleTheme()" [attr.aria-label]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+        [attr.title]="theme === 'dark' ? 'Light mode' : 'Dark mode'">{{theme === 'dark' ? '☀️' : '🌙'}}</button>
+      @if (!admin) {
+        <div class="bell">
+          <button type="button" class="icon-button" (click)="toggleBell()" [attr.aria-expanded]="bellOpen" aria-controls="bell-panel"
+            [attr.aria-label]="'Notifications, ' + (unread + alertCount) + ' new'">🔔@if (unread + alertCount) { <span class="count">{{unread + alertCount}}</span> }</button>
+          @if (bellOpen) {
+            <div class="bell-panel" id="bell-panel">
+              <div class="bell-head"><strong>Notifications</strong>
+                @if (unread) { <button type="button" class="text-button" (click)="markAllRead()">Mark all read</button> }</div>
+              @if (alertCount) {
+                <p class="bell-group">Task alerts</p>
+                @for (t of alerts.overdue; track t.id) { <p class="alert-item overdue">⚠️ Overdue: {{t.title}}</p> }
+                @for (t of alerts.today; track t.id) { <p class="alert-item today">📌 Due today: {{t.title}}</p> }
+                @for (t of alerts.tomorrow; track t.id) { <p class="alert-item">🗓️ Due tomorrow: {{t.title}}</p> }
+              }
+              <p class="bell-group">Announcements</p>
+              @for (n of notifications; track n.id) {
+                <button type="button" class="note" [class.unread]="!n.read" (click)="openNotification(n)">
+                  <strong>{{n.title}}</strong>
+                  <span>{{n.message}}</span>
+                  <small>{{n.target_group ? 'To ' + n.target_group : 'To everyone'}} · {{n.created_at | date:'d MMM, h:mm a'}}</small>
+                </button>
+              } @empty { <p class="muted">No announcements yet.</p> }
+            </div>
+          }
+        </div>
+      }
+      <button type="button" class="account-name link-like" (click)="openProfile()" title="My profile">{{api.session.user.name}}{{api.session.user.group_name ? ' · ' + api.session.user.group_name : ''}}</button>
+      <button [disabled]="busy" (click)="logout()">Sign out</button>
     </div>
   </div>
 </header>
@@ -18,6 +45,7 @@
 @if (error) { <p role="alert">{{error}}</p> }
 @if (notice || busy) { <p role="status">{{busy ? 'Please wait…' : notice}}</p> }
 @if (!api.session) {
+  <button type="button" class="icon-button theme-corner" (click)="toggleTheme()" [attr.aria-label]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">{{theme === 'dark' ? '☀️' : '🌙'}}</button>
   <section class="auth">
     <div class="cover">
       <strong class="cover-title">Taskfolio</strong>
@@ -31,15 +59,28 @@
         </ul>
       </div>
     </div>
-    <div class="auth-body"><h1>{{register ? 'Create an account' : 'Sign in'}}</h1>
-  <p class="intro">{{register ? 'Create your login to start adding tasks.' : 'Sign in to your task dashboard.'}}</p>
+    <div class="auth-body">
   <form #auth="ngForm" (ngSubmit)="signIn(auth)">
+    @if (!register) {
+      <div class="login-tabs" role="tablist" aria-label="Choose login type">
+        <button type="button" role="tab" [attr.aria-selected]="loginAs === 'user'" (click)="chooseLogin('user', auth)">👤 User login</button>
+        <button type="button" role="tab" [attr.aria-selected]="loginAs === 'admin'" (click)="chooseLogin('admin', auth)">🛡️ Admin login</button>
+      </div>
+    }
+    <div><h1>{{register ? 'Create an account' : loginAs === 'admin' ? 'Admin sign in' : 'Sign in'}}</h1>
+    <p class="intro">{{register ? 'Create your login to start adding tasks.' : loginAs === 'admin' ? 'Manage users, tasks and announcements.' : 'Sign in to your task dashboard.'}}</p></div>
     @if (register) {
       <div class="auth-field">
         <label for="auth-name">Name</label>
         <input id="auth-name" required maxlength="100" name="name" autocomplete="name" [(ngModel)]="name" #fullName="ngModel" [readOnly]="busy"
           [attr.aria-invalid]="(fullName.touched || auth.submitted) && !name.trim()" aria-describedby="name-feedback">
         <small id="name-feedback" class="field-error">@if ((fullName.touched || auth.submitted) && !name.trim()) { Enter your name. }</small>
+      </div>
+      <div class="auth-field">
+        <label for="auth-group">Group (optional)</label>
+        <input id="auth-group" maxlength="50" name="group" list="group-options" placeholder="e.g. GRP 10" [(ngModel)]="groupName" [readOnly]="busy">
+        <datalist id="group-options">@for (g of groupOptions; track g) { <option [value]="g"></option> }</datalist>
+        <small>You'll receive announcements sent to your group.</small>
       </div>
     }
     <div class="auth-field">
@@ -67,9 +108,36 @@
         <small id="confirm-feedback" class="field-error">@if ((confirmField.touched || auth.submitted) && (!confirmation || confirmation !== password)) { Enter the same password in both fields. }</small>
       </div>
     }
-    <button class="primary" [disabled]="busy">{{register ? 'Register' : 'Sign in'}}</button>
+    <button class="primary" [disabled]="busy">{{register ? 'Register' : loginAs === 'admin' ? 'Sign in as admin' : 'Sign in'}}</button>
   </form>
-  <button class="text-button" [disabled]="busy" (click)="switchAuth(auth)">{{register ? 'Back to sign in' : 'Create an account'}}</button></div></section>
+  @if (loginAs === 'user' || register) {
+    <button class="text-button" [disabled]="busy" (click)="switchAuth(auth)">{{register ? 'Back to sign in' : 'Create an account'}}</button>
+  }</div></section>
+} @else if (view === 'profile') {
+  <div class="dashboard-heading"><h1>My profile</h1><button type="button" (click)="view = 'dashboard'">← Back to dashboard</button></div>
+  <div class="workspace profile">
+    <section><h2>Account details</h2>
+      <form #profileForm="ngForm" (ngSubmit)="saveProfile()">
+        <label>Email<input [value]="api.session.user.email" disabled></label>
+        <label>Name<input name="pname" required maxlength="100" [(ngModel)]="profile.name" [disabled]="busy"></label>
+        @if (!admin) {
+          <label>Group<input name="pgroup" maxlength="50" list="group-options-profile" placeholder="e.g. GRP 10" [(ngModel)]="profile.group" [disabled]="busy"></label>
+          <datalist id="group-options-profile">@for (g of groupOptions; track g) { <option [value]="g"></option> }</datalist>
+        }
+        <p class="muted">Role: <strong>{{api.session.user.role}}</strong></p>
+        <div class="actions"><button class="primary" [disabled]="busy || !profile.name.trim()">Save profile</button></div>
+      </form>
+    </section>
+    <section><h2>Change password</h2>
+      <form #pwForm="ngForm" (ngSubmit)="changePassword(pwForm)">
+        <label>Current password<input type="password" name="current" required autocomplete="current-password" [(ngModel)]="profile.current" [disabled]="busy"></label>
+        <label>New password<input type="password" name="next" required minlength="6" maxlength="72" autocomplete="new-password" [(ngModel)]="profile.next" [disabled]="busy"></label>
+        <label>Confirm new password<input type="password" name="confirm" required autocomplete="new-password" [(ngModel)]="profile.confirm" [disabled]="busy"></label>
+        @if (profile.confirm && profile.next !== profile.confirm) { <small class="field-error">The new passwords don't match.</small> }
+        <div class="actions"><button class="primary" [disabled]="busy || !profile.current || profile.next.length < 6 || profile.next !== profile.confirm">Change password</button></div>
+      </form>
+    </section>
+  </div>
 } @else {
   <div class="dashboard-heading"><h1>{{admin ? 'Admin dashboard' : 'My tasks'}}</h1>
     @if (!admin && loaded) { <button class="primary" [disabled]="busy" (click)="editing !== undefined && resetForm(); openEditor()">+ Add task</button> }
@@ -83,15 +151,37 @@
       <div><dt>Completed</dt><dd>{{completed}}</dd></div>
     </dl>
     }
+    <ai-assistant [tasks]="tasks" (tasksChanged)="reload()" (useDraft)="useDraft($event)" (useNotification)="useNotification($event)"></ai-assistant>
     <div class="workspace" [class.admin]="admin">
     @if (admin) {
+      <div class="admin-column">
+      <section class="compose"><h2>📣 Send notification</h2>
+        <form #notifyForm="ngForm" (ngSubmit)="sendNotification(notifyForm)">
+          <label>Send to<select name="ntarget" [(ngModel)]="compose.target" [disabled]="busy">
+            <option [ngValue]="null">All users</option>
+            @for (g of groups; track g.group_name) { <option [ngValue]="g.group_name">{{g.group_name}} ({{g.members}} {{g.members === 1 ? 'member' : 'members'}})</option> }
+          </select></label>
+          <label>Title<input id="compose-title" name="ntitle" required maxlength="120" [(ngModel)]="compose.title" [disabled]="busy"></label>
+          <label>Message<textarea name="nmessage" required maxlength="2000" [(ngModel)]="compose.message" [disabled]="busy"></textarea></label>
+          <small class="muted">Tip: write a rough note in the AI Notification Writer above, then "Use in notification".</small>
+          <div class="actions"><button class="primary" [disabled]="busy || !compose.title.trim() || !compose.message.trim()">Send</button></div>
+        </form>
+        @if (sent.length) {
+          <h3>Sent</h3>
+          @for (n of sent; track n.id) {
+            <article class="sent-note"><div><strong>{{n.title}}</strong><p>{{n.message}}</p>
+              <small>{{n.target_group ? 'To ' + n.target_group : 'To all users'}} · {{n.created_at | date:'d MMM, h:mm a'}} · read by {{n.read_count}}/{{n.audience}}</small></div>
+              <button type="button" class="danger" [disabled]="busy" (click)="deleteNotification(n)">Delete</button></article>
+          }
+        }
+      </section>
       <section><h2>Registered users</h2>
       @if (usersUnavailable) {
         <p role="alert">The user list could not be loaded.</p>
         <button [disabled]="busy" (click)="reload()">Retry loading users</button>
       } @else {
       @for (u of otherUsers; track u.id) {
-        <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}</p></div>
+        <article><div><strong>{{u.name}}</strong><p>{{u.email}} · {{u.role}}{{u.group_name ? ' · ' + u.group_name : ''}}</p></div>
                 <div class="actions"><span class="account-status" [class.active]="u.is_active">{{u.is_active === true ? 'Active' : u.is_active === false ? 'Inactive' : 'Status unavailable'}}</span>
         <button [disabled]="busy || tasksUnavailable" (click)="ownerId = u.id; filter = 'all'; query = ''; listHeading.focus()">View tasks</button>
         <button [disabled]="busy" (click)="renamingId = u.id; displayName = u.name; deactivatingId = undefined">Edit name</button>
@@ -113,6 +203,7 @@
       } @empty { <p>No other accounts have registered yet.</p> }
       }
       </section>
+      </div>
     } @else {
       <section class="editor" [class.open]="editorOpen"><h2>{{editing === undefined ? 'Add task' : 'Edit task'}}</h2>
       <form #taskForm="ngForm" (ngSubmit)="save()">
@@ -120,6 +211,7 @@
         <label>Description<textarea [disabled]="busy" name="description" [(ngModel)]="draft.description"></textarea></label>
         <div class="row"><label>Priority<select [disabled]="busy" name="priority" [(ngModel)]="draft.priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
         <label>Due date<input type="date" [disabled]="busy" name="date" [(ngModel)]="draft.due_date"></label></div>
+        <label>Time estimate (minutes, optional)<input type="number" min="1" max="10080" [disabled]="busy" name="estimate" [(ngModel)]="draft.estimated_minutes"></label>
         <div class="actions"><button class="primary" [disabled]="busy || taskForm.invalid || !draft.title.trim()">{{editing === undefined ? 'Add task' : 'Save changes'}}</button>
         @if (editorOpen) { <button type="button" [disabled]="busy" (click)="resetForm()">Cancel</button> }</div>
       </form></section>
@@ -168,6 +260,7 @@
             <span class="badge" [class.complete]="t.status === 'completed'">{{t.status}}</span>
             <span class="priority" [attr.data-priority]="t.priority">{{t.priority}} priority</span>
             @if (t.due_date) { <span>@if (dueLabel(t); as urgency) { <b>{{urgency}}</b> · } @else { Due }<time [attr.datetime]="t.due_date.slice(0,10)">{{(t.due_date.slice(0,10) + 'T00:00:00Z') | date:'mediumDate':'UTC'}}</time></span> }
+            @if (t.estimated_minutes) { <span title="Time estimate">⏱ {{estimateLabel(t.estimated_minutes)}}</span> }
             @if (admin) { <span>Assigned to <strong>{{ownerLabels.get(t.user_id) || ("User #" + t.user_id)}}</strong></span> }
           </div>
         </div>
@@ -183,7 +276,7 @@
       </div>
     }
     }
-    </section></div>
+    </section></div>
   }
 }
 </main>

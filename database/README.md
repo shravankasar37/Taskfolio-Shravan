@@ -28,6 +28,17 @@ Owner: Shravan Sunil Kasar (`feature/database`)
 
 > `schema.sql` drops and re-creates the tables. Re-running it deletes all data.
 
+## Task 3 upgrade (existing database – keeps all data)
+
+If your database was created with the old `schema.sql` (for example the live Neon database), run the migration once:
+
+```bash
+psql "$DATABASE_URL" -f database/migrations/002_task3_features.sql
+```
+
+It adds user groups, task time estimates, notifications (with read tracking) and the `ai_runs` table used for the
+Gemini vs Grok speed comparison. It is safe to run more than once. Fresh installs already get all of this from `schema.sql`.
+
 ## Backend connection
 
 Put this in `backend/.env` (never commit `.env`):
