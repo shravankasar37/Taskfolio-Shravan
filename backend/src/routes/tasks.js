@@ -1,13 +1,15 @@
 import { pool } from '../db.js';
 
-const COLUMNS = 'id, user_id, title, description, status, priority, due_date, completed_at, created_at, updated_at';
+export const COLUMNS = 'id, user_id, title, description, status, priority, due_date, estimated_minutes, completed_at, created_at, updated_at';
 
 const taskFields = {
   title: { type: 'string', minLength: 1, maxLength: 200 },
   description: { type: ['string', 'null'] },
   status: { type: 'string', enum: ['pending', 'completed'] },
   priority: { type: 'string', enum: ['low', 'medium', 'high'] },
-  due_date: { anyOf: [{ type: 'string', format: 'date' }, { type: 'null' }] }
+  due_date: { anyOf: [{ type: 'string', format: 'date' }, { type: 'null' }] },
+  // type list (not anyOf) so 0 is rejected instead of being silently converted to null
+  estimated_minutes: { type: ['integer', 'null'], minimum: 1, maximum: 10080 }
 };
 
 const idParam = { type: 'object', properties: { id: { type: 'integer' } } };
@@ -37,12 +39,12 @@ export default async function taskRoutes(app) {
   app.post('/', {
     schema: { body: { type: 'object', required: ['title'], properties: taskFields } }
   }, async (request, reply) => {
-    const { title, description = null, status = 'pending', priority = 'medium', due_date = null } = request.body;
+    const { title, description = null, status = 'pending', priority = 'medium', due_date = null, estimated_minutes = null } = request.body;
     if (!title.trim()) return reply.code(400).send({ message: 'Title is required.' });
     const { rows } = await pool.query(
-      `INSERT INTO tasks (user_id, title, description, status, priority, due_date, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${COLUMNS}`,
-      [request.user.id, title.trim(), description, status, priority, due_date,
+      `INSERT INTO tasks (user_id, title, description, status, priority, due_date, estimated_minutes, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${COLUMNS}`,
+      [request.user.id, title.trim(), description, status, priority, due_date, estimated_minutes,
         status === 'completed' ? new Date() : null]
     );
     return reply.code(201).send(rows[0]);
@@ -56,9 +58,11 @@ export default async function taskRoutes(app) {
     if (!next.title || !next.title.trim()) return reply.code(400).send({ message: 'Title is required.' });
     const completedAt = next.status === 'completed' ? (task.completed_at || new Date()) : null;
     const { rows } = await pool.query(
-      `UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, completed_at = $6
-       WHERE id = $7 RETURNING ${COLUMNS}`,
-      [next.title.trim(), next.description, next.status, next.priority, next.due_date, completedAt, task.id]
+      `UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5,
+              estimated_minutes = $6, completed_at = $7
+       WHERE id = $8 RETURNING ${COLUMNS}`,
+      [next.title.trim(), next.description, next.status, next.priority, next.due_date,
+        next.estimated_minutes, completedAt, task.id]
     );
     return rows[0];
   };

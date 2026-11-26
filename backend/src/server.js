@@ -7,6 +7,8 @@ import { pool } from './db.js';
 import authRoutes from './routes/auth.js';
 import taskRoutes from './routes/tasks.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notifications.js';
+import aiRoutes from './routes/ai.js';
 
 const app = Fastify({ logger: true });
 
@@ -47,6 +49,8 @@ app.get('/api/health', async () => ({ status: 'ok' }));
 await app.register(authRoutes, { prefix: '/api/auth' });
 await app.register(taskRoutes, { prefix: '/api/tasks' });
 await app.register(adminRoutes, { prefix: '/api/admin' });
+await app.register(notificationRoutes, { prefix: '/api/notifications' });
+await app.register(aiRoutes, { prefix: '/api/ai' });
 
 const production = process.env.NODE_ENV === 'production';
 if (production) {

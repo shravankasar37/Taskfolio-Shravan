@@ -9,6 +9,9 @@
 -- =====================================================================
 
 DROP VIEW  IF EXISTS user_task_stats;
+DROP TABLE IF EXISTS ai_runs;
+DROP TABLE IF EXISTS notification_reads;
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS tasks;
 DROP TABLE IF EXISTS users;
 DROP FUNCTION IF EXISTS set_updated_at();
@@ -24,6 +27,7 @@ CREATE TABLE users (
     role          VARCHAR(10)  NOT NULL DEFAULT 'user'
                   CHECK (role IN ('user', 'admin')),
     is_active     BOOLEAN      NOT NULL DEFAULT TRUE, -- admin can deactivate a user ("Manage users")
+    group_name    VARCHAR(50),                        -- e.g. 'GRP 10', used for group-wise notifications
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -45,6 +49,7 @@ CREATE TABLE tasks (
     priority     VARCHAR(10)  NOT NULL DEFAULT 'medium'
                  CHECK (priority IN ('low', 'medium', 'high')),
     due_date     DATE,
+    estimated_minutes INTEGER CHECK (estimated_minutes BETWEEN 1 AND 10080), -- AI Time Estimator
     completed_at TIMESTAMPTZ,                     -- set when status becomes 'completed'
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -53,6 +58,42 @@ CREATE TABLE tasks (
 -- Fast lookups for "my tasks" and the Pending / Completed filters
 CREATE INDEX tasks_user_id_idx        ON tasks (user_id);
 CREATE INDEX tasks_user_id_status_idx ON tasks (user_id, status);
+
+-- ---------------------------------------------------------------------
+-- Group-wise notifications: admin sends to everyone (target_group NULL)
+-- or to one group. notification_reads remembers who has read what.
+-- ---------------------------------------------------------------------
+CREATE TABLE notifications (
+    id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title        VARCHAR(120) NOT NULL CHECK (LENGTH(TRIM(title)) > 0),
+    message      TEXT         NOT NULL CHECK (LENGTH(TRIM(message)) > 0),
+    target_group VARCHAR(50),
+    created_by   INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX notifications_target_group_idx ON notifications (target_group);
+
+CREATE TABLE notification_reads (
+    notification_id INTEGER     NOT NULL REFERENCES notifications (id) ON DELETE CASCADE,
+    user_id         INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    read_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (notification_id, user_id)
+);
+
+-- ---------------------------------------------------------------------
+-- AI runs: one row per Gemini / Grok call, used for the speed comparison
+-- ---------------------------------------------------------------------
+CREATE TABLE ai_runs (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id    INTEGER     REFERENCES users (id) ON DELETE SET NULL,
+    feature    VARCHAR(40) NOT NULL,
+    provider   VARCHAR(10) NOT NULL CHECK (provider IN ('gemini', 'grok')),
+    model      VARCHAR(80),
+    elapsed_ms INTEGER     NOT NULL,
+    ok         BOOLEAN     NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ai_runs_feature_provider_idx ON ai_runs (feature, provider);
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at correct automatically on every UPDATE
