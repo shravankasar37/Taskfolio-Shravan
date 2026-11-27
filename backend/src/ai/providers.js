@@ -1,4 +1,4 @@
-// Calls Gemini or Grok with the SAME prompt text and returns the reply + how long it took.
+// Calls Gemini or Groq with the SAME prompt text and returns the reply + how long it took.
 // Keys come only from environment variables (backend/.env locally, Render → Environment when hosted).
 
 export const PROVIDERS = {
@@ -26,18 +26,20 @@ export const PROVIDERS = {
       return text;
     }
   },
-  grok: {
-    label: 'Grok',
-    keyName: 'XAI_API_KEY',
-    model: () => process.env.XAI_MODEL || 'grok-3-mini',
-    async call(prompt, model, signal) {
-      const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  groq: {
+    label: 'Groq',
+    keyName: 'GROQ_API_KEY',
+    model: () => process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+    async call(prompt, model, signal, retried = false) {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.XAI_API_KEY}` },
-        body: JSON.stringify({ model, temperature: 0.4, messages: [{ role: 'user', content: prompt }] })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+        body: JSON.stringify({ model, temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await res.json().catch(() => ({}));
+      // Groq checks the JSON itself and rejects a broken reply – try once more (the wait counts in the time).
+      if (data?.error?.code === 'json_validate_failed' && !retried) return this.call(prompt, model, signal, true);
       if (!res.ok) throw new ProviderError(data?.error?.message || data?.error || `HTTP ${res.status}`, res.status);
       const text = data.choices?.[0]?.message?.content;
       if (!text) throw new ProviderError('Empty reply');
@@ -63,8 +65,9 @@ function friendlyMessage(message, status) {
     return 'the API key is missing or invalid. Check the key in the backend environment.';
   }
   if (status === 404 || (m.includes('model') && (m.includes('not found') || m.includes('does not exist')))) {
-    return 'the model name is wrong or no longer available. Check GEMINI_MODEL / XAI_MODEL.';
+    return 'the model name is wrong or no longer available. Check GEMINI_MODEL / GROQ_MODEL.';
   }
+  if (m.includes('validate json')) return 'replied, but not in the expected format. Try again.';
   if (status >= 500) return 'the AI service is having problems right now. Try again shortly.';
   return message.slice(0, 300);
 }

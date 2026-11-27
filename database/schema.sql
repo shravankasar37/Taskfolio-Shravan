@@ -81,13 +81,13 @@ CREATE TABLE notification_reads (
 );
 
 -- ---------------------------------------------------------------------
--- AI runs: one row per Gemini / Grok call, used for the speed comparison
+-- AI runs: one row per Gemini / Groq call, used for the speed comparison
 -- ---------------------------------------------------------------------
 CREATE TABLE ai_runs (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id    INTEGER     REFERENCES users (id) ON DELETE SET NULL,
     feature    VARCHAR(40) NOT NULL,
-    provider   VARCHAR(10) NOT NULL CHECK (provider IN ('gemini', 'grok')),
+    provider   VARCHAR(10) NOT NULL CHECK (provider IN ('gemini', 'groq')),
     model      VARCHAR(80),
     elapsed_ms INTEGER     NOT NULL,
     ok         BOOLEAN     NOT NULL,

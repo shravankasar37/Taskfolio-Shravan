@@ -17,12 +17,12 @@ export default async function aiRoutes(app) {
       .map(([id, f]) => ({ id, label: f.label }))
   }));
 
-  // POST /api/ai/:feature { provider: 'gemini' | 'grok', ...feature input }
+  // POST /api/ai/:feature { provider: 'gemini' | 'groq', ...feature input }
   app.post('/:feature', {
     onRequest: [limitAiCalls],
     schema: {
       params: { type: 'object', properties: { feature: { type: 'string' } } },
-      body: { type: 'object', required: ['provider'], properties: { provider: { type: 'string', enum: ['gemini', 'grok'] } } }
+      body: { type: 'object', required: ['provider'], properties: { provider: { type: 'string', enum: ['gemini', 'groq'] } } }
     }
   }, async (request, reply) => {
     const feature = FEATURES[request.params.feature];

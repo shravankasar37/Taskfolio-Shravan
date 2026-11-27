@@ -1,10 +1,10 @@
 // LOCAL TESTING ONLY (AI_MOCK=true, never in production): fake replies in the same JSON shape the
 // real models return, so the screens can be tested without API keys. Mock runs are never saved to
-// ai_runs, so they can never end up in the Gemini vs Grok comparison.
+// ai_runs, so they can never end up in the Gemini vs Groq comparison.
 import { today } from './features.js';
 
 export function mockReply(feature, provider, ctx) {
-  const tag = provider === 'gemini' ? 'Gemini' : 'Grok';
+  const tag = provider === 'gemini' ? 'Gemini' : 'Groq';
   const d = today();
   const replies = {
     'daily-planner': () => ({

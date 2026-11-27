@@ -3,6 +3,10 @@
 Owner: Shravan Sunil Kasar (Group Leader) · Created: 26-Nov-2026 · Deadline: **end of this week**
 (comparison document: **by Sunday**)
 
+> **Update 27-Nov-2026:** the second provider is now **Groq** (free, model `openai/gpt-oss-20b`) instead of
+> Grok (xAI needs paid credits). Code, env names (`GROQ_API_KEY`, `GROQ_MODEL`) and the UI use Groq;
+> this plan below still says Grok where it was written before the switch.
+
 ## 1. Rules from Vyas sir
 
 1. **Individual task.** Each intern forks the repo to their own GitHub, hosts their **own** copy, and adds their **own** AI feature.

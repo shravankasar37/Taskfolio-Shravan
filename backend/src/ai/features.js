@@ -2,7 +2,7 @@ import { pool } from '../db.js';
 
 // ---------------------------------------------------------------------------------------------
 // Each feature: load the user's data from the database (never trust the browser for it),
-// build ONE prompt (the same text goes to Gemini and Grok), then check and clean the AI reply.
+// build ONE prompt (the same text goes to Gemini and Groq), then check and clean the AI reply.
 // ---------------------------------------------------------------------------------------------
 
 const TZ = process.env.APP_TIMEZONE || 'Asia/Kolkata';
@@ -51,7 +51,7 @@ use the given time estimates when present, and do not overload the day – leave
 Pending tasks:
 ${tasks.map(taskLine).join('\n')}` + jsonRules(`{
   "summary": "one or two sentences about the day",
-  "plan": [ { "start": "HH:MM", "end": "HH:MM", "task_id": 12 or null for breaks, "title": "task title or Break", "note": "why / what to focus on" } ],
+  "plan": [ { "start": "HH:MM", "end": "HH:MM", "task_id": 12, "title": "task title (for a break use task_id null and title Break)", "note": "why / what to focus on" } ],
   "not_scheduled": [ { "task_id": 15, "title": "...", "reason": "why it waits" } ]
 }`)
     };
@@ -125,11 +125,11 @@ const timeEstimate = {
     return {
       context: { task },
       prompt: `Estimate how long this task will take one focused student/intern, in minutes. Be realistic, include
-small overheads, and split it into a few steps that add up to the total.
+small overheads, and split it into a few steps that add up to the total. "confidence" must be "low", "medium" or "high".
 
 Task: "${task.title}"${task.description ? `\nDetails: ${task.description}` : ''}` + jsonRules(`{
   "estimated_minutes": 90,
-  "confidence": "low" | "medium" | "high",
+  "confidence": "medium",
   "reasoning": "one or two sentences",
   "steps": [ { "step": "...", "minutes": 30 } ]
 }`)

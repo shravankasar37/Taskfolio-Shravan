@@ -37,7 +37,10 @@ psql "$DATABASE_URL" -f database/migrations/002_task3_features.sql
 ```
 
 It adds user groups, task time estimates, notifications (with read tracking) and the `ai_runs` table used for the
-Gemini vs Grok speed comparison. It is safe to run more than once. Fresh installs already get all of this from `schema.sql`.
+Gemini vs Groq speed comparison. It is safe to run more than once. Fresh installs already get all of this from `schema.sql`.
+
+If your database ran an older 002 that allowed only `'grok'`, also run
+`database/migrations/003_switch_grok_to_groq.sql` (the second AI provider is now Groq).
 
 ## Backend connection
 

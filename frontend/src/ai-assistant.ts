@@ -27,7 +27,7 @@ export class AiAssistant {
   @Output() useDraft = new EventEmitter<Partial<Draft>>();
   @Output() useNotification = new EventEmitter<{ title: string; message: string }>();
 
-  readonly providers: Provider[] = ['gemini', 'grok'];
+  readonly providers: Provider[] = ['gemini', 'groq'];
   about = ABOUT;
   info?: AiInfo;
   infoError = '';
@@ -45,9 +45,9 @@ export class AiAssistant {
   get running() { return Object.values(this.results).some(r => r?.state === 'loading'); }
   get label() { return this.info?.features.find(f => f.id === this.feature)?.label ?? ''; }
   get faster(): Provider | null {
-    const g = this.results.gemini, x = this.results.grok;
+    const g = this.results.gemini, x = this.results.groq;
     if (g?.state !== 'done' || x?.state !== 'done' || !g.data || !x.data) return null;
-    return g.data.elapsedMs <= x.data.elapsedMs ? 'gemini' : 'grok';
+    return g.data.elapsedMs <= x.data.elapsedMs ? 'gemini' : 'groq';
   }
 
   async ngOnInit() {

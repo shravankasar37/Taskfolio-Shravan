@@ -27,7 +27,7 @@
       <div class="ai-panel" role="tabpanel">
         <p class="ai-hint">{{about[feature]?.hint}}</p>
 
-        <form class="ai-input" (ngSubmit)="run(['gemini', 'grok'])">
+        <form class="ai-input" (ngSubmit)="run(['gemini', 'groq'])">
           @switch (feature) {
             @case ('daily-planner') {
               <div class="row">
@@ -72,14 +72,14 @@
           }
           <div class="actions ai-run">
             <button type="button" class="gemini-btn" [disabled]="running || !canRun()" (click)="run(['gemini'])">Generate with Gemini</button>
-            <button type="button" class="grok-btn" [disabled]="running || !canRun()" (click)="run(['grok'])">Generate with Grok</button>
+            <button type="button" class="groq-btn" [disabled]="running || !canRun()" (click)="run(['groq'])">Generate with Groq</button>
             <button class="primary" [disabled]="running || !canRun()">⚖️ Compare both</button>
           </div>
         </form>
 
         @if (notice) { <p role="status">{{notice}}</p> }
 
-        <div class="ai-results" [class.single]="(results.gemini ? 1 : 0) + (results.grok ? 1 : 0) === 1">
+        <div class="ai-results" [class.single]="(results.gemini ? 1 : 0) + (results.groq ? 1 : 0) === 1">
           @for (p of providers; track p) {
             @if (results[p]; as r) {
               <article class="ai-result" [attr.data-provider]="p">
@@ -165,17 +165,17 @@
     }
 
     <details class="ai-stats" (toggle)="loadStats()">
-      <summary>📊 Gemini vs Grok – speed comparison</summary>
+      <summary>📊 Gemini vs Groq – speed comparison</summary>
       @if (statFeatures().length) {
         <table>
-          <thead><tr><th>Feature</th><th>Gemini avg</th><th>Grok avg</th><th>Runs (ok)</th></tr></thead>
+          <thead><tr><th>Feature</th><th>Gemini avg</th><th>Groq avg</th><th>Runs (ok)</th></tr></thead>
           <tbody>
             @for (f of statFeatures(); track f) {
               <tr>
                 <td>{{featureLabel(f)}}</td>
                 <td>{{seconds(stat(f, 'gemini')?.avg_ms)}}</td>
-                <td>{{seconds(stat(f, 'grok')?.avg_ms)}}</td>
-                <td>G {{stat(f, 'gemini')?.ok_runs ?? 0}}/{{stat(f, 'gemini')?.runs ?? 0}} · X {{stat(f, 'grok')?.ok_runs ?? 0}}/{{stat(f, 'grok')?.runs ?? 0}}</td>
+                <td>{{seconds(stat(f, 'groq')?.avg_ms)}}</td>
+                <td>G {{stat(f, 'gemini')?.ok_runs ?? 0}}/{{stat(f, 'gemini')?.runs ?? 0}} · Q {{stat(f, 'groq')?.ok_runs ?? 0}}/{{stat(f, 'groq')?.runs ?? 0}}</td>
               </tr>
             }
           </tbody>

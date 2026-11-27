@@ -2,7 +2,7 @@
 
 ## Run locally
 1. Set up the database first (see `database/README.md`).
-2. Copy `.env.example` to `.env` and fill in your own values (database password, JWT secret, Gemini + Grok keys).
+2. Copy `.env.example` to `.env` and fill in your own values (database password, JWT secret, Gemini + Groq keys).
 3. `npm install`
 4. `npm run dev` -> http://localhost:5000/api/health
 
@@ -38,9 +38,9 @@ GET    /api/admin/tasks        all tasks (admin)
 GET    /api/admin/stats        task statistics (admin)
 PATCH  /api/admin/users/:id    { name } or { is_active } (admin)
 
-### AI – Gemini vs Grok
+### AI – Gemini vs Groq
 GET    /api/ai/features        features available to me + provider status
-POST   /api/ai/:feature        { provider: "gemini" | "grok", ...input } -> { provider, model, elapsedMs, result }
+POST   /api/ai/:feature        { provider: "gemini" | "groq", ...input } -> { provider, model, elapsedMs, result }
 GET    /api/ai/stats           average response time per feature and provider
 
 Features: `daily-planner`, `overdue-rescue`, `time-estimate`, `weekly-report`, `due-date`, `description`, `ask` (users),

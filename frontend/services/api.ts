@@ -16,7 +16,7 @@ export interface Task extends Draft { id: number; user_id: number }
 export interface AppNotification { id: number; title: string; message: string; target_group: string | null; created_at: string; read: boolean }
 export interface SentNotification extends Omit<AppNotification, 'read'> { read_count: number; audience: number }
 export interface Group { group_name: string; members: number }
-export type Provider = 'gemini' | 'grok';
+export type Provider = 'gemini' | 'groq';
 export interface AiInfo {
   mock: boolean;
   providers: Record<Provider, { label: string; model: string; configured: boolean }>;
@@ -115,7 +115,7 @@ export class Api {
   }
   deleteNotification(id: number) { return this.request('DELETE', '/admin/notifications/' + id); }
 
-  // ----- AI (Gemini / Grok) -----
+  // ----- AI (Gemini / Groq) -----
   aiInfo() { return this.request<AiInfo>('GET', '/ai/features'); }
   aiRun(feature: string, provider: Provider, input: Record<string, unknown> = {}) {
     return this.request<AiResponse>('POST', '/ai/' + feature, {...input, provider});
