@@ -53,7 +53,7 @@ export default async function aiRoutes(app) {
       await logRun(request, provider, PROVIDERS[provider].model(), elapsedMs, false, mock);
       const reason = error.name === 'TimeoutError' ? 'took too long (timeout)'
         : error instanceof ProviderError ? error.message : 'could not be reached';
-      request.log.warn({ provider, reason }, 'AI provider failed');
+      request.log.warn({ provider, reason, detail: error.detail }, 'AI provider failed');
       return reply.code(502).send({ message: `${PROVIDERS[provider].label} failed: ${reason}` });
     }
 

@@ -47,7 +47,26 @@ export const PROVIDERS = {
 };
 
 export class ProviderError extends Error {
-  constructor(message, status) { super(String(message).slice(0, 300)); this.upstreamStatus = status; }
+  constructor(message, status) { super(friendlyMessage(String(message), status)); this.upstreamStatus = status; this.detail = String(message).slice(0, 300); }
+}
+
+// Turns long provider error texts into a short message the user can act on.
+function friendlyMessage(message, status) {
+  const m = message.toLowerCase();
+  if (status === 429 || m.includes('quota') || m.includes('rate limit') || m.includes('resource_exhausted')) {
+    return 'free-tier limit reached (too many requests or daily quota used up). Wait a minute and try again.';
+  }
+  if (m.includes('credit') || m.includes('spending limit') || m.includes('billing') || m.includes('permission')) {
+    return 'the account has no credits or billing is not set up for this API key.';
+  }
+  if (status === 401 || m.includes('api key') || m.includes('incorrect') || m.includes('unauthorized')) {
+    return 'the API key is missing or invalid. Check the key in the backend environment.';
+  }
+  if (status === 404 || (m.includes('model') && (m.includes('not found') || m.includes('does not exist')))) {
+    return 'the model name is wrong or no longer available. Check GEMINI_MODEL / XAI_MODEL.';
+  }
+  if (status >= 500) return 'the AI service is having problems right now. Try again shortly.';
+  return message.slice(0, 300);
 }
 
 export function isConfigured(provider) {
